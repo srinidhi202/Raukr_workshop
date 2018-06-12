@@ -1,0 +1,326 @@
+---
+title: "Day2_June12"
+author: "Srinidhi Varadharajan"
+date: "6/12/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+```
+
+## OOP
+ * 4 systems - S3,S4, RC and R6
+
+```{r }
+obj<-factor(c("x","y","z"))
+typeof(obj)
+class(obj)
+attributes(obj)
+str(obj)
+```
+
+
+```{r , echo=FALSE}
+new_Animal <- function(species, age) {
+  stopifnot(is.character(species))
+  stopifnot(is.numeric(age))
+  structure(
+    species,
+    age = age,
+    class = "Animal"
+  )
+}
+
+validate_Animal <- function(x) {
+  species <- unclass(x)
+  age <- attr(x, 'age')
+  if (is.na(species) || species == "") {
+    stop('Species name is missing!', call. = FALSE)
+  }
+  if (!is.numeric(age) || age < 1 || age >= 100) {
+    stop("Invalid age!", .call = FALSE)
+  }
+  return(x)
+}
+
+Animal <- function(x) {
+  species <- x[[1]] 
+  age <- x[[2]]
+  validate_Animal(new_Animal(species, age))
+}
+
+
+dog <- Animal(list('Canis familiaris', 7))
+class(dog)
+```
+
+```{r}
+setClass('gene', 
+         representation(name='character', 
+                        coords='numeric')
+         )
+
+.intragenic_region <- setClass(Class = 'intragenic_region', 
+                               slots = c(
+                                 name='character', 
+                                 coords='numeric'
+                               )
+                              )
+my.gene <- new('gene', name = 'ANK3', 
+               coords = c(1.4e6, 1.412e6))
+# but since SetClass returns a low-level constructor
+my.intra1 <- .intragenic_region(name = 'int1', 
+                  coords = c(1.7e6, 1.717e6))
+.ext_gene <- setClass(Class = 'ext_gene',
+                      contains = "gene",
+                      slots = c(
+                        gene = 'gene',
+                        feature_name = 'character',
+                        feature_value = 'character'
+                      ))
+ANK3 <- .ext_gene(name = 'ANK3', 
+                  coords = c(1.4e6, 1.412e6),
+                  feature_name = 'num_introns',
+                  feature_value = '5')
+str(ANK3)
+```
+
+```{r}
+library(R6)
+Person <- R6Class("Person",
+  public = list(
+    name = NULL,
+    hair = NULL,
+    initialize = function(name = NA, hair = NA) {
+      stopifnot(is.character(name), is.character(hair))
+      self$name <- name
+      self$hair <- hair
+      self$greet()
+    },
+    set_hair = function(val) {
+      self$hair <- val
+    },
+    greet = function() {
+      cat(paste0("Hello, my name is ", self$name, ".\n"))
+    }
+  )
+)
+```
+
+
+### EXERCISES
+
+### 1. S3 classes
+
+
+```{r}
+ctl <- c(4.17,5.58,5.18,6.11,4.50,4.61,5.17,4.53,5.33,5.14)
+trt <- c(4.81,4.17,4.41,3.59,5.87,3.83,6.03,4.89,4.32,4.69)
+group <- gl(2, 10, 20, labels = c("Ctl","Trt"))
+weight <- c(ctl, trt)
+lm.D9 <- lm(weight ~ group)
+
+#what basic data type is it build upon?
+typeof(lm.D9)
+
+
+#what is the class of the object returned by the lm() function?
+class(lm.D9)  
+
+#what attributes does the object of the lm class have?
+attributes(lm.D9)
+
+#what is the structure of the lm object?
+str(lm.D9)
+
+#does the lm class implement own str()?
+str(lm.D9)
+
+
+str(unclass(lm.D9))
+
+```
+
+```{r}
+
+as.tibble(mtcars)
+
+#what is the class of a tibble?
+class(as.tibble(mtcars))
+
+#what is the underlying data type?
+typeof(as.tibble(mtcars))
+
+#is the str() function used by tibbles the default str()?
+# NO
+str(as.tibble(mtcars))
+str(mtcars)
+
+
+#implement your own class meta_frame that is a data.frame with additional attributes:
+# character attribute descr (a description),
+# creation attribute which will hold the creation date.
+
+meta_frame <- function(df, descr, creation) {
+  structure(
+    list(
+      df =df , 
+      descr = descr, 
+      creation = creation,
+    ),
+    class = "meta_frame"
+  )
+}
+
+
+newObj<-meta_frame(mtcars,"mtcars dataframe",Sys.Date())
+newObj$descr
+
+```
+
+
+#### Design implementation of your own S3 class protein that stores the following information (you will implement the class in the next point, now just think and draw on paper if you wish):
+
+        * protein sequence,
+        * protein length,
+        * post-translational modification (PTM) site coords,
+        * PTM type that can be either of: “phosphorylation”, or “methylation”.
+        * implement the protein class from the previous point using the constructor, validator and helper design pattern. Try to reduce the number of input arguments to: + + asequence and a list of PTMs.
+      
+```{r}
+# Constructor
+new_protein <- function(sequence, length, ptm_site, ptm_type) {
+  stopifnot(is.character(sequence))
+  stopifnot(is.integer(length))
+  stopifnot(is.numeric(ptm_site))
+  stopifnot(is.character(ptm_type))
+  structure(
+    sequence,
+    length = length,
+    ptm_site = ptm_site,
+    ptm_type = ptm_type,
+    class = "protein"
+  )
+}
+
+
+
+# Validator
+validate_protein <- function(x) {
+  sequence <- unclass(x)
+  len <- attr(x, 'length')
+  ptm_site <- attr(x, 'ptm_site')
+  ptm_type <- attr(x, 'ptm_type')
+  if (is.na(sequence)) {
+    stop('Sequence is missing!', call. = FALSE)
+  }
+  if (length(ptm_site) != length(ptm_type)) {
+    stop('PTM type and site differ in length!', call. = FALSE)
+  }
+  if ((sum(!ptm_type %in% c('phosphorylation', 'methylation'))) > 0) {
+    stop("PTM type is neither “phosphorylation”, or “methylation”!", call. = FALSE)
+  }
+  return(x)
+}
+
+# Helper
+protein <- function(sequence, ptm) {
+  sequence <- sequence
+  len <- nchar(sequence)
+  ptm_site <- ptm[[1]]
+  ptm_type = ptm[[2]]
+  validate_protein(new_protein(sequence, len, ptm_site, ptm_type))
+}
+
+
+protein("YOO",list(c(2,3),c("methylation","methylation")))
+
+
+print.protein<- function(myObj) {
+  sequence <- unclass(myObj)
+  len <- attr(myObj, 'length')
+  ptm_site <- attr(myObj, 'ptm_site')
+  ptm_type <- attr(myObj, 'ptm_type')
+
+  print("============== Protein ==============")
+  print(paste0("Sequence:",sequence))
+  print(paste0("Length:",len,"aa"))
+  
+  print("============== PTM ==============")
+  print(paste0("Site: ",ptm_site))
+  print(paste0("Type: ",ptm_type))
+  
+          
+}
+
+# write a generic print for the protein class. It should print e.g.:
+print(protein("YOO",list(c(2,3),c("methylation","methylation"))))
+#new_Protein(seq = "yoo",ptmCoord = c(10,34),ptmType = "methylation")
+ 
+#validate_Protein(new_Protein(seq = "yoojd",ptmCoord = c(10,34),ptmType = "methylation"))
+ 
+#Protein(list("Yoo",1,c(5,6),"methylation"))
+```
+
+### 2. S4 classes
+```{r}
+setClass('gene', 
+         representation(name='character', 
+                        coords='numeric')
+         )
+.intragenic_region <- setClass(Class = 'intragenic_region', 
+                               slots = c(
+                                 name='character', 
+                                 coords='numeric'
+                               )
+                              )
+my.gene <- new('gene', name = 'ANK3', 
+               coords = c(1.4e6, 1.412e6))
+# but since SetClass returns a low-level constructor
+my.intra1 <- .intragenic_region(name = 'int1', 
+                  coords = c(1.7e6, 1.717e6))
+
+
+
+setClass('protein', 
+         representation(seq='character', 
+                        len="numeric",
+                        coords='numeric',
+                        ptm_type="character")
+         )
+
+protein <- function(sequence, ptm) {
+  sequence <- sequence
+  len <- nchar(sequence)
+  ptm_site <- ptm[[1]]
+  ptm_type = ptm[[2]]
+
+  if (is.na(sequence)) {
+    stop('Sequence is missing!', call. = FALSE)
+  }
+  if (length(ptm_site) != length(ptm_type)) {
+    stop('PTM type and site differ in length!', call. = FALSE)
+  }
+  if ((sum(!ptm_type %in% c('phosphorylation', 'methylation'))) > 0) {
+    stop("PTM type is neither “phosphorylation”, or “methylation”!", call. = FALSE)
+  }
+  
+  
+  
+  prot<-new('protein', seq = sequence, len=len,coords = ptm_site,ptm_type=ptm_type)
+  
+return(prot)  
+}
+
+
+```
+
+### 3. R6 classes
+
+
+
+## R packages
+
