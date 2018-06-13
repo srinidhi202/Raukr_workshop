@@ -9,6 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+
 ```
 
 ## OOP
@@ -145,7 +146,6 @@ str(unclass(lm.D9))
 ```
 
 ```{r}
-
 as.tibble(mtcars)
 
 #what is the class of a tibble?
@@ -167,17 +167,16 @@ str(mtcars)
 meta_frame <- function(df, descr, creation) {
   structure(
     list(
-      df =df , 
+      df = df, 
       descr = descr, 
-      creation = creation,
+      creation = creation
     ),
     class = "meta_frame"
   )
 }
-
-
-newObj<-meta_frame(mtcars,"mtcars dataframe",Sys.Date())
-newObj$descr
+obj <- meta_frame(mtcars, 'The mtcars dataset', '10-06-2018')
+str(obj)
+obj$descr
 
 ```
 
@@ -202,7 +201,7 @@ new_protein <- function(sequence, length, ptm_site, ptm_type) {
     length = length,
     ptm_site = ptm_site,
     ptm_type = ptm_type,
-    class = "protein"
+    class = "protein1"
   )
 }
 
@@ -227,7 +226,7 @@ validate_protein <- function(x) {
 }
 
 # Helper
-protein <- function(sequence, ptm) {
+protein1 <- function(sequence, ptm) {
   sequence <- sequence
   len <- nchar(sequence)
   ptm_site <- ptm[[1]]
@@ -236,10 +235,10 @@ protein <- function(sequence, ptm) {
 }
 
 
-protein("YOO",list(c(2,3),c("methylation","methylation")))
+protein1("YOO",list(c(2,3),c("methylation","methylation")))
 
 
-print.protein<- function(myObj) {
+print.protein1<- function(myObj) {
   sequence <- unclass(myObj)
   len <- attr(myObj, 'length')
   ptm_site <- attr(myObj, 'ptm_site')
@@ -257,7 +256,7 @@ print.protein<- function(myObj) {
 }
 
 # write a generic print for the protein class. It should print e.g.:
-print(protein("YOO",list(c(2,3),c("methylation","methylation"))))
+print(protein1("YOO",list(c(2,3),c("methylation","methylation"))))
 #new_Protein(seq = "yoo",ptmCoord = c(10,34),ptmType = "methylation")
  
 #validate_Protein(new_Protein(seq = "yoojd",ptmCoord = c(10,34),ptmType = "methylation"))
@@ -265,7 +264,6 @@ print(protein("YOO",list(c(2,3),c("methylation","methylation"))))
 #Protein(list("Yoo",1,c(5,6),"methylation"))
 ```
 
-### 2. S4 classes
 ```{r}
 setClass('gene', 
          representation(name='character', 
@@ -283,7 +281,10 @@ my.gene <- new('gene', name = 'ANK3',
 my.intra1 <- .intragenic_region(name = 'int1', 
                   coords = c(1.7e6, 1.717e6))
 
+```
 
+### 2. S4 classes
+```{r}
 
 setClass('protein', 
          representation(seq='character', 
@@ -291,6 +292,15 @@ setClass('protein',
                         coords='numeric',
                         ptm_type="character")
          )
+
+.protein <- setClass('protein',
+                     slots = c(
+                       sequence = 'character',
+                       len = 'numeric',
+                       coords = 'numeric',
+                       ptm_type = 'character'
+                      )
+                    )
 
 protein <- function(sequence, ptm) {
   sequence <- sequence
@@ -307,20 +317,99 @@ protein <- function(sequence, ptm) {
   if ((sum(!ptm_type %in% c('phosphorylation', 'methylation'))) > 0) {
     stop("PTM type is neither “phosphorylation”, or “methylation”!", call. = FALSE)
   }
-  
-  
-  
-  prot<-new('protein', seq = sequence, len=len,coords = ptm_site,ptm_type=ptm_type)
-  
+  #prot<-new('protein', seq = sequence, len=len,coords = ptm_site,ptm_type=ptm_type)
+   prot <- .protein(sequence = sequence, 
+           len = len, 
+           coords = ptm_site, 
+           ptm_type = ptm_type)
 return(prot)  
 }
 
+
+
+# print function for the S4 class
+setMethod('print', 'protein', 
+          function(x) {
+            
+  print("============== Protein ==============")
+  print(paste0("Sequence:",x@sequence))
+  print(paste0("Length:",x@len,"aa"))
+  
+  print("============== PTM ==============")
+  print(paste0("Site: ",x@coords))
+  print(paste0("Type: ",x@ptm_type))
+          }
+)
+ 
+print(protein(sequence = "GTATAGTG",ptm = list(c(3,5),c("methylation","methylation"))))
+ 
+ 
+```
+>implement a new S4 class ext_protein that extends protein with 3 slots:
+feature type,
+feature position, and
+feature value.
+
+```{r}
+
+.ext_protein <- setClass(Class = 'ext_protein',
+                      contains = "protein",
+                      slots = c(
+                        protein = 'protein',
+                        feature_type = 'character',
+                        feature_position = 'numeric',
+                        feature_value = 'character'
+                      ))
+
+.ext_protein(sequence = "GTATAGTG",ptm = list(c(3,5),c("methylation","methylation"),feature_type = 'num_introns', feature_position= 2, feature_value = '5') )
+
+#.ext_protein(sequence = "GTATAGTG",ptm = list(c(3,5),c("methylation","methylation"),feature_type = 'num_introns', feature_position= 2, feature_value = '5') )
+
+.ext_protein(protein = protein(sequence = "GTATAGTG",ptm = list(c(3,5),c("methylation","methylation"))),feature_type = 'num_introns', feature_position=2, feature_value = '5') 
 
 ```
 
 ### 3. R6 classes
 
+```{r}
+protein3 <- R6Class(classname="protein3",
+                    public = list(
+                      seq = NA,
+                      len = NULL,
+                      ptm_coord = NA,
+                      ptm_type = NA,
+                      initialize = function(seq = NA, ptm = NA) {
+                      #  stopifnot(is.character(seq), is.character(ptm_type),is.numeric(len),is.numeric(ptm_coord))
+                        self$seq <- seq
+                        self$len <- nchar(self$seq )
+                        self$ptm_coord <- ptm[[1]]
+                        self$ptm_type <-  ptm[[2]]
+                      
+                      
+                      if (is.na(self$seq)) {
+                        stop('Sequence is missing!', call. = FALSE)
+                      }
+                      if (length(self$ptm_coord ) != length(self$ptm_type)) {
+                        stop('PTM type and site differ in length!', call. = FALSE)
+                      }
+                      if ((sum(!self$ptm_type%in% c('phosphorylation', 'methylation'))) > 0) {
+                        stop("PTM type is neither “phosphorylation”, or “methylation”!", call. = FALSE)
+                      }
+                      }   
+                    )
+)
+
+
+
+```
+
 
 
 ## R packages
+```{r}
+
+```
+
+
+
 
